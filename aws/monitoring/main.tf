@@ -53,7 +53,7 @@ module "root_usage" {
   log_group_name = local.log_group_name
   name           = "root_usage"
   namespace      = "Cyscale"
-  pattern        = "{($.eventName = \"ConsoleLogin\") && ($.additionalEventData.MFAUsed != \"Yes\")}"
+  pattern        = "{$.userIdentity.type = \"Root\" && $.userIdentity.invokedBy NOT EXISTS && $.eventType != \"AwsServiceEvent\"}"
   topic_arn      = aws_sns_topic.monitoring.arn
 }
 
@@ -65,14 +65,14 @@ module "iam_changes" {
   name           = "iam_changes"
   namespace      = "Cyscale"
   pattern        = <<PATTERN
-   "($.eventName=DeleteGroupPolicy)||($.eventName=DeleteRolePolicy)||
+   {($.eventName=DeleteGroupPolicy)||($.eventName=DeleteRolePolicy)||
     ($.eventName=DeleteUserPolicy)||($.eventName=PutGroupPolicy)||
     ($.eventName=PutRolePolicy)||($.eventName=PutUserPolicy)||
     ($.eventName=CreatePolicy)||($.eventName=DeletePolicy)||
     ($.eventName=CreatePolicyVersion)||($.eventName=DeletePolicyVersion)||
     ($.eventName=AttachRolePolicy)||($.eventName=DetachRolePolicy)||
     ($.eventName=AttachUserPolicy)||($.eventName=DetachUserPolicy)||
-    ($.eventName=AttachGroupPolicy)||($.eventName=DetachGroupPolicy)}"
+    ($.eventName=AttachGroupPolicy)||($.eventName=DetachGroupPolicy)}
   PATTERN
   topic_arn      = aws_sns_topic.monitoring.arn
 }
@@ -95,7 +95,7 @@ module "console_signin_failure" {
   log_group_name = local.log_group_name
   name           = "console_signin_failure"
   namespace      = "Cyscale"
-  pattern        = "{($.eventName = \"ConsoleLogin\") && ($.errorMessage = \"Failed authentication\")}"
+  pattern        = "{($.eventName = ConsoleLogin) && ($.errorMessage = \"Failed authentication\")}"
   topic_arn      = aws_sns_topic.monitoring.arn
 }
 
@@ -214,11 +214,11 @@ module "vpc_changes" {
   name           = "vpc_changes"
   namespace      = "Cyscale"
   pattern        = <<PATTERN
-{ ($.eventName = CreateVpc) || ($.eventName = DeleteVpc) ||  ($.eventName = ModifyVpcAttribute) ||
+ {($.eventName = CreateVpc) || ($.eventName = DeleteVpc) || ($.eventName = ModifyVpcAttribute) ||
   ($.eventName = AcceptVpcPeeringConnection) || ($.eventName = CreateVpcPeeringConnection) ||
   ($.eventName = DeleteVpcPeeringConnection) || ($.eventName = RejectVpcPeeringConnection) ||
   ($.eventName = AttachClassicLinkVpc) || ($.eventName = DetachClassicLinkVpc) ||
-  ($.eventName = DisableVpcClassicLink) || ($.eventName = EnableVpcClassicLink) }
+  ($.eventName = DisableVpcClassicLink) || ($.eventName = EnableVpcClassicLink)}
 PATTERN
   topic_arn      = aws_sns_topic.monitoring.arn
 }
