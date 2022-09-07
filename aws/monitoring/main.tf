@@ -222,3 +222,25 @@ module "vpc_changes" {
 PATTERN
   topic_arn      = aws_sns_topic.monitoring.arn
 }
+
+# Control: 4.15 Ensure a log metric filter and alarm exists for AWS Organizations changes
+module "org_changes" {
+  source = "../modules/monitoring-alarm"
+
+  log_group_name = local.log_group_name
+  name           = "org_changes"
+  namespace      = "Cyscale"
+  pattern        = <<PATTERN
+ {($.eventSource = organizations.amazonaws.com) && 
+  (($.eventName = "AcceptHandshake") || ($.eventName = "AttachPolicy") || 
+  ($.eventName = "CreateAccount") || ($.eventName = "CreateOrganizationalUnit") || 
+  ($.eventName = "CreatePolicy") || ($.eventName = "DeclineHandshake") || 
+  ($.eventName = "DeleteOrganization") || ($.eventName = "DeleteOrganizationalUnit") || 
+  ($.eventName = "DeletePolicy") || ($.eventName = "DetachPolicy") || 
+  ($.eventName = "DisablePolicyType") || ($.eventName = "EnablePolicyType") || 
+  ($.eventName = "InviteAccountToOrganization") || ($.eventName = "LeaveOrganization") || 
+  ($.eventName = "MoveAccount") || ($.eventName = "RemoveAccountFromOrganization") || 
+  ($.eventName = "UpdatePolicy") || ($.eventName = "UpdateOrganizationalUnit"))}
+PATTERN
+  topic_arn      = aws_sns_topic.monitoring.arn
+}
