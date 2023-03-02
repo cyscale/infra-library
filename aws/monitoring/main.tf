@@ -14,23 +14,23 @@ resource "aws_sns_topic" "monitoring" {
   kms_master_key_id = "alias/aws/sns"
 
   tags = {
-    owner = local.email
+    owner = var.email
   }
 }
 
 resource "aws_sns_topic_subscription" "email" {
   topic_arn = aws_sns_topic.monitoring.arn
   protocol  = "email"
-  endpoint  = local.email
+  endpoint  = var.email
 }
 
 # Control: 4.1 Ensure a log metric filter and alarm exist for unauthorized API calls
 module "unauthorized_api_calls" {
   source = "../modules/monitoring-alarm"
 
-  log_group_name = local.log_group_name
+  log_group_name = var.log_group_name
   name           = "unauthorized_api_calls"
-  namespace      = "Cyscale"
+  namespace      = var.namespace
   pattern        = "{($.errorCode = \"*UnauthorizedOperation\") || ($.errorCode = \"AccessDenied*\")}"
   topic_arn      = aws_sns_topic.monitoring.arn
 }
@@ -39,9 +39,9 @@ module "unauthorized_api_calls" {
 module "no_mfa_console_signin" {
   source = "../modules/monitoring-alarm"
 
-  log_group_name = local.log_group_name
+  log_group_name = var.log_group_name
   name           = "no_mfa_console_signin"
-  namespace      = "Cyscale"
+  namespace      = var.namespace
   pattern        = "{($.eventName = \"ConsoleLogin\") && ($.additionalEventData.MFAUsed != \"Yes\")}"
   topic_arn      = aws_sns_topic.monitoring.arn
 }
@@ -50,9 +50,9 @@ module "no_mfa_console_signin" {
 module "root_usage" {
   source = "../modules/monitoring-alarm"
 
-  log_group_name = local.log_group_name
+  log_group_name = var.log_group_name
   name           = "root_usage"
-  namespace      = "Cyscale"
+  namespace      = var.namespace
   pattern        = "{$.userIdentity.type = \"Root\" && $.userIdentity.invokedBy NOT EXISTS && $.eventType != \"AwsServiceEvent\"}"
   topic_arn      = aws_sns_topic.monitoring.arn
 }
@@ -61,9 +61,9 @@ module "root_usage" {
 module "iam_changes" {
   source = "../modules/monitoring-alarm"
 
-  log_group_name = local.log_group_name
+  log_group_name = var.log_group_name
   name           = "iam_changes"
-  namespace      = "Cyscale"
+  namespace      = var.namespace
   pattern        = <<PATTERN
    {($.eventName=DeleteGroupPolicy)||($.eventName=DeleteRolePolicy)||
     ($.eventName=DeleteUserPolicy)||($.eventName=PutGroupPolicy)||
@@ -81,9 +81,9 @@ module "iam_changes" {
 module "cloudtrail_cfg_changes" {
   source = "../modules/monitoring-alarm"
 
-  log_group_name = local.log_group_name
+  log_group_name = var.log_group_name
   name           = "cloudtrail_cfg_changes"
-  namespace      = "Cyscale"
+  namespace      = var.namespace
   pattern        = "{($.eventName = CreateTrail) || ($.eventName = UpdateTrail) || ($.eventName = DeleteTrail) || ($.eventName = StartLogging) || ($.eventName = StopLogging)}"
   topic_arn      = aws_sns_topic.monitoring.arn
 }
@@ -92,9 +92,9 @@ module "cloudtrail_cfg_changes" {
 module "console_signin_failure" {
   source = "../modules/monitoring-alarm"
 
-  log_group_name = local.log_group_name
+  log_group_name = var.log_group_name
   name           = "console_signin_failure"
-  namespace      = "Cyscale"
+  namespace      = var.namespace
   pattern        = "{($.eventName = ConsoleLogin) && ($.errorMessage = \"Failed authentication\")}"
   topic_arn      = aws_sns_topic.monitoring.arn
 }
@@ -103,9 +103,9 @@ module "console_signin_failure" {
 module "disable_or_delete_cmk_changes" {
   source = "../modules/monitoring-alarm"
 
-  log_group_name = local.log_group_name
+  log_group_name = var.log_group_name
   name           = "disable_or_delete_cmk_changes"
-  namespace      = "Cyscale"
+  namespace      = var.namespace
   pattern        = "{($.eventSource = kms.amazonaws.com) && (($.eventName=DisableKey) || ($.eventName=ScheduleKeyDeletion))}"
   topic_arn      = aws_sns_topic.monitoring.arn
 }
@@ -114,9 +114,9 @@ module "disable_or_delete_cmk_changes" {
 module "s3_bucket_policy_changes" {
   source = "../modules/monitoring-alarm"
 
-  log_group_name = local.log_group_name
+  log_group_name = var.log_group_name
   name           = "s3_bucket_policy_changes"
-  namespace      = "Cyscale"
+  namespace      = var.namespace
   pattern        = <<PATTERN
 {($.eventSource = s3.amazonaws.com) && (($.eventName = PutBucketAcl) ||
 ($.eventName = PutBucketPolicy) || ($.eventName = PutBucketCors) ||
@@ -131,9 +131,9 @@ PATTERN
 module "aws_config_changes" {
   source = "../modules/monitoring-alarm"
 
-  log_group_name = local.log_group_name
+  log_group_name = var.log_group_name
   name           = "aws_config_changes"
-  namespace      = "Cyscale"
+  namespace      = var.namespace
   pattern        = "{($.eventSource=config.amazonaws.com) && (($.eventName=StopConfigurationRecorder) || ($.eventName=DeleteDeliveryChannel) || ($.eventName=PutDeliveryChannel) || ($.eventName=PutConfigurationRecorder))}"
   topic_arn      = aws_sns_topic.monitoring.arn
 }
@@ -142,9 +142,9 @@ module "aws_config_changes" {
 module "security_group_changes" {
   source = "../modules/monitoring-alarm"
 
-  log_group_name = local.log_group_name
+  log_group_name = var.log_group_name
   name           = "security_group_changes"
-  namespace      = "Cyscale"
+  namespace      = var.namespace
   pattern        = <<PATTERN
 {($.eventName = AuthorizeSecurityGroupIngress) ||
 ($.eventName = AuthorizeSecurityGroupEgress) ||
@@ -160,9 +160,9 @@ module "security_group_changes" {
 module "nacl_changes" {
   source = "../modules/monitoring-alarm"
 
-  log_group_name = local.log_group_name
+  log_group_name = var.log_group_name
   name           = "nacl_changes"
-  namespace      = "Cyscale"
+  namespace      = var.namespace
   pattern        = <<PATTERN
 {($.eventName = CreateNetworkAcl) ||
 ($.eventName = CreateNetworkAclEntry) ||
@@ -178,9 +178,9 @@ PATTERN
 module "gateway_changes" {
   source = "../modules/monitoring-alarm"
 
-  log_group_name = local.log_group_name
+  log_group_name = var.log_group_name
   name           = "gateway_changes"
-  namespace      = "Cyscale"
+  namespace      = var.namespace
   pattern        = <<PATTERN
 {($.eventName = CreateCustomerGateway) ||
 ($.eventName = DeleteCustomerGateway) || ($.eventName = AttachInternetGateway) ||
@@ -194,9 +194,9 @@ PATTERN
 module "route_table_changes" {
   source = "../modules/monitoring-alarm"
 
-  log_group_name = local.log_group_name
+  log_group_name = var.log_group_name
   name           = "route_table_changes"
-  namespace      = "Cyscale"
+  namespace      = var.namespace
   pattern        = <<PATTERN
 {($.eventName = CreateRoute) || ($.eventName = CreateRouteTable) ||
 ($.eventName = ReplaceRoute) || ($.eventName = ReplaceRouteTableAssociation)||
@@ -210,9 +210,9 @@ PATTERN
 module "vpc_changes" {
   source = "../modules/monitoring-alarm"
 
-  log_group_name = local.log_group_name
+  log_group_name = var.log_group_name
   name           = "vpc_changes"
-  namespace      = "Cyscale"
+  namespace      = var.namespace
   pattern        = <<PATTERN
  {($.eventName = CreateVpc) || ($.eventName = DeleteVpc) || ($.eventName = ModifyVpcAttribute) ||
   ($.eventName = AcceptVpcPeeringConnection) || ($.eventName = CreateVpcPeeringConnection) ||
@@ -227,9 +227,9 @@ PATTERN
 module "org_changes" {
   source = "../modules/monitoring-alarm"
 
-  log_group_name = local.log_group_name
+  log_group_name = var.log_group_name
   name           = "org_changes"
-  namespace      = "Cyscale"
+  namespace      = var.namespace
   pattern        = <<PATTERN
  {($.eventSource = organizations.amazonaws.com) && 
   (($.eventName = "AcceptHandshake") || ($.eventName = "AttachPolicy") || 
