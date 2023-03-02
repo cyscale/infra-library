@@ -1,0 +1,113 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: Cyscale AWS Monitoring Controls
+Parameters:
+  LogGroupName:
+    Description: CloudTrail's CloudWatch Log Group Name
+    Default: 'aws-cloudtrail-logs-044102971343-2d135509'
+    Type: String
+  Namespace:
+    Description: The CloudWatch namespace. Read more here https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/cloudwatch_concepts.html#Namespace
+    Default: 'Cyscale'
+    Type: String
+  Email:
+    Description: The recipient of the alert notification (through SNS)
+    Type: String
+  TopicName:
+    Description: The SNS topic name
+    Type: String
+Resources:
+  SnsTopicMetricFilterCloudWatchAlarm:
+    Type: 'AWS::SNS::Topic'
+    Properties:
+      Subscription:
+        - Endpoint: !Ref Email
+          Protocol: 'email'
+      TopicName: !Ref TopicName
+
+  # -----------------------------------------------------------------------------------------------------------------------------------
+  # Control: 4.5 Ensure a log metric filter and alarm exist for CloudTrail configuration changes
+  # -----------------------------------------------------------------------------------------------------------------------------------
+  CloudtrailConfigChangesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: CIS-Cloudtrail Config Changes
+      AlarmDescription: Alarm if someone changes Cloudtrail configurations
+      MetricName: CloudtrailConfigChangeEventCount
+      Namespace: !Ref Namespace
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - Ref: 'SnsTopicMetricFilterCloudWatchAlarm'
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+  CloudtrailConfigChangesFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref LogGroupName
+      FilterPattern: |-
+        {
+          ($.eventName = CreateTrail) ||
+          ($.eventName = UpdateTrail) ||
+          ($.eventName = DeleteTrail) || 
+          ($.eventName = StartLogging) ||
+          ($.eventName = StopLogging)
+        }
+      MetricTransformations:
+        - MetricValue: '1'
+          MetricNamespace: !Ref Namespace
+          MetricName: CloudtrailConfigChangeEventCount
+  CloudtrailConfigChangesQuery:
+    Type: AWS::Logs::QueryDefinition
+    Properties:
+      Name: CIS-Alarms/CIS-Cloudtrail Config Changes
+      LogGroupNames:
+        - !Ref LogGroupName
+      QueryString: |-
+        fields @timestamp, @message |
+          sort @timestamp desc |
+          filter eventName in ['CreateTrail', 'DeleteTrail', 'StartLogging', 'StopLogging', 'UpdateTrail']
+
+  # -----------------------------------------------------------------------------------------------------------------------------------
+  # Control: 4.7 Ensure a log metric filter and alarm exist for disabling or scheduled deletion of customer created CMKs
+  # -----------------------------------------------------------------------------------------------------------------------------------
+  DisabledOrDeletedCmksAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: CIS-KMS Key Disabled or Scheduled for Deletion
+      AlarmDescription: Alarm if CMKs are disabled or scheduled for deletion
+      MetricName: KMSCustomerKeyDeletion
+      Namespace: !Ref Namespace
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - Ref: 'SnsTopicMetricFilterCloudWatchAlarm'
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+  DisabledOrDeletedCmksFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref LogGroupName
+      FilterPattern: |-
+        {
+          ($.eventSource = kms.amazonaws.com) &&
+          (($.eventName=DisableKey) || ($.eventName=ScheduleKeyDeletion))
+        }
+      MetricTransformations:
+        - MetricValue: '1'
+          MetricNamespace: !Ref Namespace
+          MetricName: KMSCustomerKeyDeletion
+  DisabledOrDeletedCmksQuery:
+    Type: AWS::Logs::QueryDefinition
+    Properties:
+      Name: CIS-Alarms/CIS-KMS Key Disabled or Scheduled for Deletion
+      LogGroupNames:
+        - !Ref LogGroupName
+      QueryString: |-
+        fields @timestamp, @message |
+          sort @timestamp desc |
+          filter eventSource == 'kms.amazonaws.com' and eventName in ['DisableKey', 'ScheduleKeyDeletion']
