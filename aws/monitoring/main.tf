@@ -10,7 +10,7 @@ terraform {
 provider "aws" {}
 
 resource "aws_sns_topic" "monitoring" {
-  name              = "sap-cyscale-monitoring"
+  name              = "cyscale-monitoring"
   kms_master_key_id = "alias/aws/sns"
 
   tags = {
